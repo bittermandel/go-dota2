@@ -1,13 +1,13 @@
 package dota2
 
 import (
-	"fmt"
 	"github.com/Philipp15b/go-steam"
 	"github.com/Philipp15b/go-steam/protocol"
 	"github.com/Philipp15b/go-steam/protocol/gamecoordinator"
 	protobuf2 "github.com/Philipp15b/go-steam/protocol/protobuf"
 	"github.com/Philipp15b/go-steam/protocol/steamlang"
 	"github.com/Philipp15b/go-steam/tf2/protocol/protobuf"
+	dota2 "github.com/bittermandel/go-dota2/objects"
 	"io/ioutil"
 	"log"
 )
@@ -20,10 +20,11 @@ type Dota2 struct {
 	client *steam.Client
 	logOnDetails *steam.LogOnDetails
 	loggedOn bool
+	richPresences	[]*dota2.RichPresence
 }
 
 func New(client *steam.Client, logOnDetails *steam.LogOnDetails) (dota *Dota2) {
-	dota = &Dota2{client, logOnDetails, false}
+	dota = &Dota2{client: client, logOnDetails: logOnDetails, loggedOn: false}
 	client.GC.RegisterPacketHandler(dota)
 	client.RegisterPacketHandler(dota)
 	go func() {
@@ -44,13 +45,14 @@ func (dota *Dota2) HandlePacket(packet *protocol.Packet){
 	//log.Printf("%s\n", packet.EMsg)
 	switch packet.EMsg {
 	case steamlang.EMsg_ClientRichPresenceInfo:
-		log.Printf("%+v\n", packet)
 		body := new(protobuf2.CMsgClientRichPresenceInfo)
 		packet.ReadProtoMsg(body)
-		fmt.Println(body)
-		for index, rp := range body.RichPresence {
-			log.Printf("%+v: %+v", index, rp.RichPresenceKv)
+		rps := []*dota2.RichPresence{}
+		for _, rp := range body.RichPresence {
+			rps = append(rps, &dota2.RichPresence{SteamID: *rp.SteamidUser, RichPresenceKV: string(rp.RichPresenceKv)})
 		}
+		dota.richPresences = rps
+		log.Printf("Rich Presences: %+v", dota.richPresences)
 	}
 }
 
